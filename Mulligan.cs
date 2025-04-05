@@ -80,7 +80,7 @@ public class Mulligan
         {
             Mulligan.mulliganEnabled = base.Value == OffOnMode.OFF;
         }
-        public string GetCategory() => "Mods";
+        public string GetCategory() => "Mulligan";
         protected override OffOnMode GetDefaultValue()
         {
             return OffOnMode.OFF;
@@ -102,7 +102,7 @@ public class Mulligan
         {
             Mulligan.mulliganSeedEnabled = base.Value == OffOnMode.ON;
         }
-        public string GetCategory() => "Mods";
+        public string GetCategory() => "Mulligan";
         protected override OffOnMode GetDefaultValue()
         {
             return OffOnMode.ON;
@@ -123,6 +123,6 @@ public class Mulligan
         public override void ApplyValue() => Debug.Log($"Mod apply value {Value}");
         protected override int GetDefaultValue() => 1;
         public LocalizedString GetDisplayName() => new UnlocalizedString("Mulligan Level Threshold:");
-        public string GetCategory() => "Mods";
+        public string GetCategory() => "Mulligan";
     }
 }
