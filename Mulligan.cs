@@ -1,12 +1,7 @@
 ﻿using Landfall.Haste; // dont think these are all necessary, might fix later
 using Landfall.Modding; 
-using MonoMod.RuntimeDetour;
-using Steamworks;
-using System;
-using System.Reflection;
 using UnityEngine;
 using UnityEngine.Localization;
-using UnityEngine.Localization.SmartFormat.Utilities;
 using UnityEngine.SceneManagement;
 using Zorro.Settings;
 namespace Mulligan;
@@ -42,7 +37,6 @@ public class Mulligan
             }
             else
             {
-                RunHandler.LoseRun(false);
                 RunHandler.ClearCurrentRun();
                 if (mulliganSeedEnabled)
                 {
@@ -65,7 +59,7 @@ public class Mulligan
     {
         On.Player.TakeDamage += (orig, self, damage, sourceTransform, sourceName, source) =>
         {
-            if (MulliganCheck(mulliganOnHit))
+            if (MulliganCheck(mulliganOnHit)) //checks if you have on hit active, the rest is just for the on death trigger
             {
                 return;
             }
@@ -80,7 +74,7 @@ public class Mulligan
             {
                 if (MulliganCheck(mulliganOnDeath))
                 {
-                    Player.localPlayer.data.currentHealth = (Player.localPlayer.stats.maxHealth.multiplier) * (Player.localPlayer.stats.maxHealth.baseValue);
+                    Player.localPlayer.data.currentHealth = (Player.localPlayer.stats.maxHealth.multiplier) * (Player.localPlayer.stats.maxHealth.baseValue); //heal player to full 
                 }
                 else
                 {
@@ -92,7 +86,7 @@ public class Mulligan
                 orig(self, damage, sourceTransform, sourceName, source);
             }
         };
-        On.Player.Die += (orig, self) => //this is for instant death
+        On.Player.Die += (orig, self) => //this is for instant death (like from the void)
         {
             if (MulliganCheck(mulliganOnDeath))
             {
@@ -107,8 +101,8 @@ public class Mulligan
         {
             if (MulliganCheck(mulliganOnLose))
             {
-                Player.localPlayer.data.lives = (int)((Player.localPlayer.stats.lives.baseValue) * (Player.localPlayer.stats.lives.multiplier));
-                Player.localPlayer.data.currentHealth = (Player.localPlayer.stats.maxHealth.multiplier) * (Player.localPlayer.stats.maxHealth.baseValue);
+                Player.localPlayer.data.lives = (int)((Player.localPlayer.stats.lives.baseValue) * (Player.localPlayer.stats.lives.multiplier)); //max out lives
+                Player.localPlayer.data.currentHealth = (Player.localPlayer.stats.maxHealth.multiplier) * (Player.localPlayer.stats.maxHealth.baseValue); //full heal player
                 return;
             }
             else
@@ -137,7 +131,7 @@ public class Mulligan
 
 
     [HasteSetting]
-    public class MulliganEnabledSetting : OffOnSetting, IExposedSetting
+    public class MulliganEnabledSetting : OffOnSetting, IExposedSetting //bunch of very ugly settings, all enabled by default for some reason
     {
         public override void ApplyValue()
         {
