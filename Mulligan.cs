@@ -9,18 +9,17 @@ namespace Mulligan;
 [LandfallPlugin]
 public class Mulligan
 {
-    public static bool mulliganEnabled = false;
-    public static bool mulliganSeedEnabled = true;
-    public static bool mulliganRestart = false;
+    private static bool mulliganEnabled = false;
+    private static bool mulliganSeedEnabled = true;
+    private static bool mulliganRestart = false;
    
-    public static bool mulliganOnHit = false; // different triggers
-    public static bool mulliganOnDeath = false;
-    public static bool mulliganOnLose = false;
-    public static bool mulliganOnLanding = false;
+    private static bool mulliganOnHit = false; // different triggers
+    private static bool mulliganOnDeath = false;
+    private static bool mulliganOnLose = false;
+    private static bool mulliganOnLanding = false;
 
-    private static bool MulliganCheck(bool checkAgainst) // main function to check if mulligan should trigger
+    private static bool MulliganCheck(bool checkAgainst, int threshold) // main function to check if mulligan should trigger
     {
-        int threshold = GameHandler.Instance.SettingsHandler.GetSetting<MulliganThreshold>().Value - 1;
         int tempId = RunHandler.RunData.shardID;
         RunConfig tempConfig = RunHandler.config;
         int tempSeed = RunHandler.RunData.currentSeed;
@@ -59,7 +58,8 @@ public class Mulligan
     {
         On.Player.TakeDamage += (orig, self, damage, sourceTransform, sourceName, source) =>
         {
-            if (MulliganCheck(mulliganOnHit)) //checks if you have on hit active, the rest is just for the on death trigger
+            int hitThreshold = GameHandler.Instance.SettingsHandler.GetSetting<MulliganHitThreshold>().Value - 1;
+            if (MulliganCheck(mulliganOnHit, hitThreshold)) //checks if you have on hit active, the rest is just for the on death trigger
             {
                 return;
             }
@@ -72,7 +72,8 @@ public class Mulligan
             tempDamage *= GameDifficulty.currentDif.damageTaken;
             if ((Player.localPlayer.data.currentHealth - tempDamage) <= 0f) //check if damage would kill player
             {
-                if (MulliganCheck(mulliganOnDeath))
+                int deathThreshold = GameHandler.Instance.SettingsHandler.GetSetting<MulliganDeathThreshold>().Value - 1;
+                if (MulliganCheck(mulliganOnDeath, deathThreshold))
                 {
                     Player.localPlayer.data.currentHealth = (Player.localPlayer.stats.maxHealth.multiplier) * (Player.localPlayer.stats.maxHealth.baseValue); //heal player to full 
                 }
@@ -88,7 +89,8 @@ public class Mulligan
         };
         On.Player.Die += (orig, self) => //this is for instant death (like from the void)
         {
-            if (MulliganCheck(mulliganOnDeath))
+            int deathThreshold = GameHandler.Instance.SettingsHandler.GetSetting<MulliganDeathThreshold>().Value - 1;
+            if (MulliganCheck(mulliganOnDeath, deathThreshold))
             {
                 return;
             }
@@ -99,7 +101,8 @@ public class Mulligan
         };
         On.RunHandler.LoseRun += (orig, transitionOverride) =>
         {
-            if (MulliganCheck(mulliganOnLose))
+            int loseThreshold = GameHandler.Instance.SettingsHandler.GetSetting<MulliganLoseThreshold>().Value - 1;
+            if (MulliganCheck(mulliganOnLose, loseThreshold))
             {
                 Player.localPlayer.data.lives = (int)((Player.localPlayer.stats.lives.baseValue) * (Player.localPlayer.stats.lives.multiplier)); //max out lives
                 Player.localPlayer.data.currentHealth = (Player.localPlayer.stats.maxHealth.multiplier) * (Player.localPlayer.stats.maxHealth.baseValue); //full heal player
@@ -114,7 +117,8 @@ public class Mulligan
         {
             if (type == ItemTriggerType.NonPerfectLanding)
             {
-                if (MulliganCheck(mulliganOnLanding)){
+                int landingThreshold = GameHandler.Instance.SettingsHandler.GetSetting<MulliganLandingThreshold>().Value - 1;
+                if (MulliganCheck(mulliganOnLanding, landingThreshold)){
                     return;
                 }
                 else
@@ -197,14 +201,6 @@ public class Mulligan
         }
     }
     [HasteSetting]
-    public class MulliganThreshold : IntSetting, IExposedSetting
-    {
-        public override void ApplyValue() => Debug.Log($"Set Mulligan threshold to {Value}");
-        protected override int GetDefaultValue() => 1;
-        public LocalizedString GetDisplayName() => new UnlocalizedString("Mulligan Level Threshold:");
-        public string GetCategory() => "Mulligan";
-    }
-    [HasteSetting]
     public class MulliganOnHitSetting : OffOnSetting, IExposedSetting
     {
         public override void ApplyValue()
@@ -225,6 +221,14 @@ public class Mulligan
             new LocalizedString("Settings", "DisabledGraphicOption")
         };
         }
+    }
+    [HasteSetting]
+    public class MulliganHitThreshold : IntSetting, IExposedSetting
+    {
+        public override void ApplyValue() => Debug.Log($"Set Mulligan threshold to {Value}");
+        protected override int GetDefaultValue() => 1;
+        public LocalizedString GetDisplayName() => new UnlocalizedString("On Hit Level Threshold:");
+        public string GetCategory() => "Mulligan";
     }
     [HasteSetting]
     public class MulliganOnDeathSetting : OffOnSetting, IExposedSetting
@@ -249,6 +253,14 @@ public class Mulligan
         }
     }
     [HasteSetting]
+    public class MulliganDeathThreshold : IntSetting, IExposedSetting
+    {
+        public override void ApplyValue() => Debug.Log($"Set Mulligan threshold to {Value}");
+        protected override int GetDefaultValue() => 1;
+        public LocalizedString GetDisplayName() => new UnlocalizedString("On Death Level Threshold:");
+        public string GetCategory() => "Mulligan";
+    }
+    [HasteSetting]
     public class MulliganOnLoseSetting : OffOnSetting, IExposedSetting
     {
         public override void ApplyValue()
@@ -271,6 +283,14 @@ public class Mulligan
         }
     }
     [HasteSetting]
+    public class MulliganLoseThreshold : IntSetting, IExposedSetting
+    {
+        public override void ApplyValue() => Debug.Log($"Set Mulligan threshold to {Value}");
+        protected override int GetDefaultValue() => 1;
+        public LocalizedString GetDisplayName() => new UnlocalizedString("On Lose Level Threshold:");
+        public string GetCategory() => "Mulligan";
+    }
+    [HasteSetting]
     public class MulliganOnLandingSetting : OffOnSetting, IExposedSetting
     {
         public override void ApplyValue()
@@ -291,5 +311,13 @@ public class Mulligan
             new LocalizedString("Settings", "DisabledGraphicOption")
         };
         }
+    }
+    [HasteSetting]
+    public class MulliganLandingThreshold : IntSetting, IExposedSetting
+    {
+        public override void ApplyValue() => Debug.Log($"Set Mulligan threshold to {Value}");
+        protected override int GetDefaultValue() => 1;
+        public LocalizedString GetDisplayName() => new UnlocalizedString("On Non-Perfect Landing Level Threshold:");
+        public string GetCategory() => "Mulligan";
     }
 }
