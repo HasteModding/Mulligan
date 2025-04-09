@@ -145,6 +145,25 @@ public class Mulligan
                 orig(self, landing);
             }
         };
+        On.GM_Run.TransitionToLevelSelect += (orig,self) =>
+        {
+            if (RunHandler.currentTier != 0)
+            {
+                int rankThreshold = GameHandler.Instance.SettingsHandler.GetSetting<MulliganRankThreshold>().Value;
+                if (MulliganCheck(mulliganOnRank, rankThreshold))
+                {
+                    return;
+                }
+                else
+                {
+                    orig(self);
+                }
+            }
+            else
+            {
+                orig(self);
+            }
+        };
         On.EscapeMenuMainPage.OnAbandonButtonClicked += (orig, self) => //overrides abandon button because i'm lazy and this bypasses the LoseRun hook
         {
             MethodInfo compRun = typeof(RunHandler).GetMethod("CompleteRun", BindingFlags.NonPublic | BindingFlags.Static);
@@ -341,7 +360,7 @@ public class Mulligan
         public LocalizedString GetDisplayName() => new UnlocalizedString("On Non-Perfect Landing Level Threshold:");
         public string GetCategory() => "Mulligan";
     }
-    /*[HasteSetting]        
+    [HasteSetting]        
     public class MulliganOnRankSetting : OffOnSetting, IExposedSetting  //hopefully this will work soon
     {
         public override void ApplyValue()
@@ -370,5 +389,5 @@ public class Mulligan
         protected override int GetDefaultValue() => 1;
         public LocalizedString GetDisplayName() => new UnlocalizedString("On Non-S Rank Threshold:");
         public string GetCategory() => "Mulligan";
-    }*/
+    }
 }
