@@ -1,9 +1,11 @@
 ﻿using Landfall.Haste; // dont think these are all necessary, might fix later
-using Landfall.Modding; 
+using Landfall.Modding;
 using UnityEngine;
 using UnityEngine.Localization;
 using UnityEngine.SceneManagement;
 using Zorro.Settings;
+using Zorro.Core;
+using System.Reflection;
 namespace Mulligan;
 
 [LandfallPlugin]
@@ -17,13 +19,14 @@ public class Mulligan
     private static bool mulliganOnDeath = false;
     private static bool mulliganOnLose = false;
     private static bool mulliganOnLanding = false;
+    private static bool mulliganOnRank = false;
 
     private static bool MulliganCheck(bool checkAgainst, int threshold) // main function to check if mulligan should trigger
     {
         int tempId = RunHandler.RunData.shardID;
         RunConfig tempConfig = RunHandler.config;
         int tempSeed = RunHandler.RunData.currentSeed;
-        Debug.Log("Mulligan Was Triggerd On Level: " + RunHandler.RunData.currentLevel);
+        Debug.Log("Mulligan Was Triggered On Level: " + RunHandler.RunData.currentLevel);
         Debug.Log("Seed Of Trigger: " + tempSeed);
         if (RunHandler.RunData.currentLevel <= threshold && RunHandler.InRun && !UI_TransitionHandler.IsTransitioning && mulliganEnabled && checkAgainst)
         {
@@ -33,6 +36,7 @@ public class Mulligan
                 {
                     SceneManager.LoadScene(SceneManager.GetActiveScene().path);
                 }, "Dots", 0.3f, 0.5f, 0f);
+
             }
             else
             {
@@ -58,6 +62,10 @@ public class Mulligan
     {
         On.Player.TakeDamage += (orig, self, damage, sourceTransform, sourceName, source) =>
         {
+            if (UI_TransitionHandler.IsTransitioning)
+            {
+                return;
+            }
             int hitThreshold = GameHandler.Instance.SettingsHandler.GetSetting<MulliganHitThreshold>().Value - 1;
             if (MulliganCheck(mulliganOnHit, hitThreshold)) //checks if you have on hit active, the rest is just for the on death trigger
             {
@@ -113,9 +121,15 @@ public class Mulligan
                 orig(transitionOverride);
             }
         };
-        On.Player.TriggerItemsOfType += (orig, self, type) =>
+        On.PlayerMovement.Land += (orig, self, landing) =>
         {
-            if (type == ItemTriggerType.NonPerfectLanding)
+            if (UI_TransitionHandler.IsTransitioning)
+            {
+                return;
+            }
+            float landVal = (float)landing.GetType().GetField("landingScore").GetValue(landing);
+            Debug.Log(landVal);
+            if (landVal < 0.95f)
             {
                 int landingThreshold = GameHandler.Instance.SettingsHandler.GetSetting<MulliganLandingThreshold>().Value - 1;
                 if (MulliganCheck(mulliganOnLanding, landingThreshold)){
@@ -123,13 +137,20 @@ public class Mulligan
                 }
                 else
                 {
-                    orig(self, type);
+                    orig(self, landing);
                 }
             }
             else
             {
-                orig(self, type);
+                orig(self, landing);
             }
+        };
+        On.EscapeMenuMainPage.OnAbandonButtonClicked += (orig, self) => //overrides abandon button because i'm lazy and this bypasses the LoseRun hook
+        {
+            MethodInfo compRun = typeof(RunHandler).GetMethod("CompleteRun", BindingFlags.NonPublic | BindingFlags.Static);
+            object[] parameters = new object[] { false, false };
+            compRun.Invoke(null, parameters);
+            Singleton<EscapeMenu>.Instance.Close();
         };
 }
 
@@ -320,4 +341,34 @@ public class Mulligan
         public LocalizedString GetDisplayName() => new UnlocalizedString("On Non-Perfect Landing Level Threshold:");
         public string GetCategory() => "Mulligan";
     }
+    /*[HasteSetting]        
+    public class MulliganOnRankSetting : OffOnSetting, IExposedSetting  //hopefully this will work soon
+    {
+        public override void ApplyValue()
+        {
+            Mulligan.mulliganOnRank = base.Value == OffOnMode.OFF;
+        }
+        public string GetCategory() => "Mulligan";
+        protected override OffOnMode GetDefaultValue()
+        {
+            return OffOnMode.OFF;
+        }
+        public LocalizedString GetDisplayName() => new UnlocalizedString("Trigger Mulligan On Non-S Rank?");
+        public override List<LocalizedString> GetLocalizedChoices()
+        {
+            return new List<LocalizedString>
+        {
+            new LocalizedString("Settings", "EnabledGraphicOption"),
+            new LocalizedString("Settings", "DisabledGraphicOption")
+        };
+        }
+    }
+    [HasteSetting]
+    public class MulliganRankThreshold : IntSetting, IExposedSetting
+    {
+        public override void ApplyValue() => Debug.Log($"Set Mulligan threshold to {Value}");
+        protected override int GetDefaultValue() => 1;
+        public LocalizedString GetDisplayName() => new UnlocalizedString("On Non-S Rank Threshold:");
+        public string GetCategory() => "Mulligan";
+    }*/
 }
