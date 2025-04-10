@@ -113,12 +113,6 @@ namespace Mulligan
                 mulliganEnabled &&
                 checkAgainst)
             {
-                // Award meta progression rewards.
-                MetaProgressionHelper.AwardMetaProgression();
-                // Also update run stats so the player gets relevant stat changes.
-                // (Here, we pass false to indicate a non-winning run; adjust if needed.)
-                HasteStats.OnRunEnd(false, RunHandler.RunData.shardID, false);
-
                 if (mulliganRestart)
                 {
                     UI_TransitionHandler.instance.Transition(() =>
@@ -129,6 +123,11 @@ namespace Mulligan
                 }
                 else
                 {
+                         // Award meta progression rewards.
+                    MetaProgressionHelper.AwardMetaProgression();
+                    // Also update run stats so the player gets relevant stat changes.
+                    // (Here, we pass false to indicate a non-winning run; adjust if needed.)
+                    HasteStats.OnRunEnd(false, RunHandler.RunData.shardID, false);
                     RunHandler.ClearCurrentRun();
                     if (mulliganSeedEnabled)
                     {
