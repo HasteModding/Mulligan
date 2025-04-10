@@ -107,7 +107,7 @@ namespace Mulligan
                 RunHandler.RunData.currentLevel);
             Debug.Log("Seed of trigger: " + tempSeed);
 
-            if (RunHandler.RunData.currentLevel <= threshold &&
+            if (MulliganThresholdCheck(threshold) &&
                 RunHandler.InRun &&
                 !UI_TransitionHandler.IsTransitioning &&
                 mulliganEnabled &&
@@ -146,7 +146,10 @@ namespace Mulligan
                 return false;
             }
         }
-
+        private static bool MulliganThresholdCheck(int setting)
+        {
+            return ((setting < 0) ? true : (RunHandler.RunData.currentLevel <= setting));
+        }
         // Hook into various game events using MonoMod hooks.
         static Mulligan()
         {
