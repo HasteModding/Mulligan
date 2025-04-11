@@ -6,6 +6,7 @@ using Landfall.Haste;
 using Landfall.Modding;
 using Zorro.Settings;
 using Zorro.Core;
+using System.Runtime.Remoting.Messaging;
 
 namespace Mulligan
 {
@@ -83,20 +84,29 @@ namespace Mulligan
     public class Mulligan
     {
         // Settings flags that control mulligan behavior.
-        private static bool mulliganEnabled = false;
-        private static bool mulliganSeedEnabled = true;
-        private static bool mulliganRestart = false;
+        private static bool mulliganEnabled = false; // self explanatory
+        private static bool mulliganSeedEnabled = true; // keep seed or not on full reset
+        private static bool mulliganRestart = false; // full reset or just level reset
 
-        private static bool mulliganOnHit = false; // trigger on hit
-        private static bool mulliganOnDeath = false;
-        private static bool mulliganOnLose = false;
-        private static bool mulliganOnLanding = false;
-        private static bool mulliganOnRank = false;
+        private static bool  // triggers
+            mulliganOnLanding, 
+            mulliganOnRank, 
+            mulliganOnLose, 
+            mulliganOnDeath, 
+            mulliganOnHit
+            = false;
+
+        private static int // thresholds
+            hitThreshold, 
+            deathThreshold, 
+            loseThreshold, 
+            landingThreshold, 
+            rankThreshold;
 
         /// <summary>
         /// Checks whether a mulligan should trigger based on the current run state
         /// and a supplied level threshold. If so, it awards meta progression rewards
-        /// and updates the run stats (via HasteStats.OnRunEnd) before restarting the run.
+        /// and updates the run stats (via HasteStats.OnRunEnd) before restarting the run/level.
         /// </summary>
         private static bool MulliganCheck(bool checkAgainst, int threshold)
         {
@@ -113,15 +123,15 @@ namespace Mulligan
                 mulliganEnabled &&
                 checkAgainst)
             {
-                if (mulliganRestart)
+                if (mulliganRestart) // check if restarting just level or whole run
                 {
-                    UI_TransitionHandler.instance.Transition(() =>
+                    UI_TransitionHandler.instance.Transition(() => // transition back to level start
                     {
                         SceneManager.LoadScene(
                             SceneManager.GetActiveScene().path);
                     }, "Dots", 0.3f, 0.5f, 0f);
                 }
-                else
+                else 
                 {
                          // Award meta progression rewards.
                     MetaProgressionHelper.AwardMetaProgression();
@@ -129,14 +139,14 @@ namespace Mulligan
                     // (Here, we pass false to indicate a non-winning run; adjust if needed.)
                     HasteStats.OnRunEnd(false, RunHandler.RunData.shardID, false);
                     RunHandler.ClearCurrentRun();
-                    if (mulliganSeedEnabled)
+                    if (mulliganSeedEnabled) // check if keeping seed,
                     {
-                        RunHandler.StartAndPlayNewRun(tempConfig, tempId, tempSeed);
+                        RunHandler.StartAndPlayNewRun(tempConfig, tempId, tempSeed); // restart run with same stuff
                     }
                     else
                     {
                         RunHandler.StartAndPlayNewRun(
-                            tempConfig, tempId, RunHandler.GenerateSeed());
+                            tempConfig, tempId, RunHandler.GenerateSeed()); // restart with new seed
                     }
                 }
                 return true;
@@ -146,7 +156,7 @@ namespace Mulligan
                 return false;
             }
         }
-        private static bool MulliganThresholdCheck(int setting)
+        private static bool MulliganThresholdCheck(int setting) // check if current level meets threshold
         {
             return ((setting < 0) ? true : (RunHandler.RunData.currentLevel <= setting));
         }
@@ -160,24 +170,20 @@ namespace Mulligan
                 {
                     return;
                 }
-                int hitThreshold = GameHandler.Instance.SettingsHandler
-                    .GetSetting<MulliganHitThreshold>().Value - 1;
                 if (MulliganCheck(mulliganOnHit, hitThreshold))
                 {
                     return;
                 }
-                float tempDamage = damage;
+                float tempDamage = damage; 
                 if (tempDamage < 0f)
                 {
                     tempDamage *= -1f;
                 }
-                tempDamage *= (Player.localPlayer.stats.damageMultiplier.multiplier) *
+                tempDamage *= (Player.localPlayer.stats.damageMultiplier.multiplier) * //modify by difficulty settings
                               (Player.localPlayer.stats.damageMultiplier.baseValue);
-                tempDamage *= GameDifficulty.currentDif.damageTaken;
-                if ((Player.localPlayer.data.currentHealth - tempDamage) <= 0f)
+                tempDamage *= GameDifficulty.currentDif.damageTaken; 
+                if ((Player.localPlayer.data.currentHealth - tempDamage) <= 0f) // check if damage would kill player
                 {
-                    int deathThreshold = GameHandler.Instance.SettingsHandler
-                        .GetSetting<MulliganDeathThreshold>().Value - 1;
                     if (MulliganCheck(mulliganOnDeath, deathThreshold))
                     {
                         Player.localPlayer.data.currentHealth =
@@ -197,8 +203,6 @@ namespace Mulligan
 
             On.Player.Die += (orig, self) =>
             {
-                int deathThreshold = GameHandler.Instance.SettingsHandler
-                    .GetSetting<MulliganDeathThreshold>().Value - 1;
                 if (MulliganCheck(mulliganOnDeath, deathThreshold))
                 {
                     return;
@@ -211,9 +215,6 @@ namespace Mulligan
 
             On.RunHandler.LoseRun += (orig, transitionOverride) =>
             {
-                int loseThreshold =
-                    GameHandler.Instance.SettingsHandler
-                        .GetSetting<MulliganLoseThreshold>().Value - 1;
                 if (MulliganCheck(mulliganOnLose, loseThreshold))
                 {
                     // When mulliganing on lose, ensure the player is fully healed and
@@ -238,15 +239,12 @@ namespace Mulligan
                 {
                     return;
                 }
-                float landVal = (float)landing.GetType()
+                float landVal = (float)landing.GetType() 
                     .GetField("landingScore")
                     .GetValue(landing);
                 Debug.Log(landVal);
-                if (landVal < 0.95f)
+                if (landVal < 0.95f) //check if landing score was "perfect"
                 {
-                    int landingThreshold =
-                        GameHandler.Instance.SettingsHandler
-                            .GetSetting<MulliganLandingThreshold>().Value - 1;
                     if (MulliganCheck(mulliganOnLanding, landingThreshold))
                     {
                         return;
@@ -266,8 +264,6 @@ namespace Mulligan
             {
                 if (RunHandler.currentTier != 0)
                 {
-                    int rankThreshold = GameHandler.Instance.SettingsHandler
-                        .GetSetting<MulliganRankThreshold>().Value;
                     if (MulliganCheck(mulliganOnRank, rankThreshold))
                     {
                         return;
@@ -380,12 +376,10 @@ namespace Mulligan
                 };
             }
         }
-
         [HasteSetting]
         public class MulliganHitThreshold : IntSetting, IExposedSetting
         {
-            public override void ApplyValue() =>
-                Debug.Log($"Set Mulligan threshold to {Value}");
+            public override void ApplyValue() => hitThreshold = Value - 1;
             protected override int GetDefaultValue() => 1;
             public LocalizedString GetDisplayName() =>
                 new UnlocalizedString("On Hit Level Threshold:");
@@ -416,8 +410,7 @@ namespace Mulligan
         [HasteSetting]
         public class MulliganDeathThreshold : IntSetting, IExposedSetting
         {
-            public override void ApplyValue() =>
-                Debug.Log($"Set Mulligan threshold to {Value}");
+            public override void ApplyValue() => deathThreshold = Value - 1;
             protected override int GetDefaultValue() => 1;
             public LocalizedString GetDisplayName() =>
                 new UnlocalizedString("On Death Level Threshold:");
@@ -448,8 +441,7 @@ namespace Mulligan
         [HasteSetting]
         public class MulliganLoseThreshold : IntSetting, IExposedSetting
         {
-            public override void ApplyValue() =>
-                Debug.Log($"Set Mulligan threshold to {Value}");
+            public override void ApplyValue() => loseThreshold = Value - 1;
             protected override int GetDefaultValue() => 1;
             public LocalizedString GetDisplayName() =>
                 new UnlocalizedString("On Lose Level Threshold:");
@@ -480,8 +472,7 @@ namespace Mulligan
         [HasteSetting]
         public class MulliganLandingThreshold : IntSetting, IExposedSetting
         {
-            public override void ApplyValue() =>
-                Debug.Log($"Set Mulligan threshold to {Value}");
+            public override void ApplyValue() => landingThreshold = Value - 1;
             protected override int GetDefaultValue() => 1;
             public LocalizedString GetDisplayName() =>
                 new UnlocalizedString("On Non-Perfect Landing Level Threshold:");
@@ -512,8 +503,7 @@ namespace Mulligan
         [HasteSetting]
         public class MulliganRankThreshold : IntSetting, IExposedSetting
         {
-            public override void ApplyValue() =>
-                Debug.Log($"Set Mulligan threshold to {Value}");
+            public override void ApplyValue() => rankThreshold = Value - 1;
             protected override int GetDefaultValue() => 1;
             public LocalizedString GetDisplayName() =>
                 new UnlocalizedString("On Non-S Rank Threshold:");
