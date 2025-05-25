@@ -6,7 +6,7 @@ using Landfall.Haste;
 using Landfall.Modding;
 using Zorro.Settings;
 using Zorro.Core;
-using System.Runtime.Remoting.Messaging;
+using Sirenix.Utilities;
 
 namespace Mulligan
 {
@@ -42,7 +42,7 @@ namespace Mulligan
             while (FactSystem.GetFact(MetaProgression.MetaProgressionResourceForItemUnlock)
                    >= (float)SingletonAsset<MetaProgression>.Instance.itemEveryCurrency)
             {
-                ItemInstance itemToUnlock = ItemDatabase.GetRandomItem(
+                ItemInstance itemToUnlock = ItemDatabase.GetRandomItem(Player.localPlayer,
                     randomInstance,
                     GetRandomItemFlags.Major | GetRandomItemFlags.IncludeLocked |
                     GetRandomItemFlags.ExcludeUnlocked
@@ -73,6 +73,7 @@ namespace Mulligan
             SaveSystem.Save();
         }
     }
+    
 
     /// <summary>
     /// This mod enables a “Mulligan” system on various triggers.
@@ -89,18 +90,18 @@ namespace Mulligan
         private static bool mulliganRestart = false; // full reset or just level reset
 
         private static bool  // triggers
-            mulliganOnLanding, 
-            mulliganOnRank, 
-            mulliganOnLose, 
-            mulliganOnDeath, 
+            mulliganOnLanding,
+            mulliganOnRank,
+            mulliganOnLose,
+            mulliganOnDeath,
             mulliganOnHit
             = false;
 
         private static int // thresholds
-            hitThreshold, 
-            deathThreshold, 
-            loseThreshold, 
-            landingThreshold, 
+            hitThreshold,
+            deathThreshold,
+            loseThreshold,
+            landingThreshold,
             rankThreshold;
 
         /// <summary>
@@ -129,15 +130,18 @@ namespace Mulligan
                     {
                         SceneManager.LoadScene(
                             SceneManager.GetActiveScene().path);
-                    }, "Dots", 0.3f, 0.5f, 0f);
+                    }, "Dots", 0.3f, 0.5f, null);
                 }
-                else 
+                else
                 {
-                         // Award meta progression rewards.
+                    // Award meta progression rewards.
                     MetaProgressionHelper.AwardMetaProgression();
+
                     // Also update run stats so the player gets relevant stat changes.
                     // (Here, we pass false to indicate a non-winning run; adjust if needed.)
                     HasteStats.OnRunEnd(false, RunHandler.RunData.shardID, false);
+                    
+                    
                     RunHandler.ClearCurrentRun();
                     if (mulliganSeedEnabled) // check if keeping seed,
                     {
@@ -174,14 +178,14 @@ namespace Mulligan
                 {
                     return;
                 }
-                float tempDamage = damage; 
+                float tempDamage = damage;
                 if (tempDamage < 0f)
                 {
                     tempDamage *= -1f;
                 }
                 tempDamage *= (Player.localPlayer.stats.damageMultiplier.multiplier) * //modify by difficulty settings
                               (Player.localPlayer.stats.damageMultiplier.baseValue);
-                tempDamage *= GameDifficulty.currentDif.damageTaken; 
+                tempDamage *= GameDifficulty.currentDif.damageTaken;
                 if ((Player.localPlayer.data.currentHealth - tempDamage) <= 0f) // check if damage would kill player
                 {
                     if (MulliganCheck(mulliganOnDeath, deathThreshold))
@@ -201,7 +205,7 @@ namespace Mulligan
                 }
             };
 
-            On.Player.Die += (orig, self) =>
+            /*On.Player.Die += (orig, self) =>                   //old one
             {
                 if (MulliganCheck(mulliganOnDeath, deathThreshold))
                 {
@@ -212,8 +216,20 @@ namespace Mulligan
                     orig(self);
                 }
             };
+            */
+            On.GM_Run.PlayerDied += (orig, self, player) =>  // second check?
+            {
+                if (MulliganCheck(mulliganOnDeath, deathThreshold))
+                {
+                    return;
+                }
+                else
+                {
+                    orig(self, player);
+                }
+            };
 
-            On.RunHandler.LoseRun += (orig, transitionOverride) =>
+            On.RunHandler.LoseRun += (orig, transitionOverride, transitionDelay) =>
             {
                 if (MulliganCheck(mulliganOnLose, loseThreshold))
                 {
@@ -229,7 +245,7 @@ namespace Mulligan
                 }
                 else
                 {
-                    orig(transitionOverride);
+                    orig(transitionOverride, transitionDelay);
                 }
             };
 
@@ -239,7 +255,7 @@ namespace Mulligan
                 {
                     return;
                 }
-                float landVal = (float)landing.GetType() 
+                float landVal = (float)landing.GetType()
                     .GetField("landingScore")
                     .GetValue(landing);
                 Debug.Log(landVal);
@@ -260,32 +276,34 @@ namespace Mulligan
                 }
             };
 
-            On.GM_Run.TransitionToLevelSelect += (orig, self) =>
+            On.GM_Run.PlayerEnteredPortal += (orig, self, player) =>
             {
-                if (RunHandler.currentTier != 0)
+                 
+                if (self.teirTime_S < self.GetCounter())
                 {
                     if (MulliganCheck(mulliganOnRank, rankThreshold))
                     {
+                        
                         return;
                     }
                     else
                     {
-                        orig(self);
+                        orig(self, player);
                     }
                 }
                 else
                 {
-                    orig(self);
+                    orig(self, player);
                 }
             };
 
-            On.EscapeMenuMainPage.OnAbandonButtonClicked += (orig, self) =>
+            On.EscapeMenuMainPage.OnAbandonConfirmButtonClicked += (orig, self) =>
             {
                 // Override the abandon button to simulate run completion.
                 MethodInfo compRun = typeof(RunHandler)
                     .GetMethod("CompleteRun",
                         BindingFlags.NonPublic | BindingFlags.Static);
-                object[] parameters = new object[] { false, false };
+                object[] parameters = new object[] { false, false, 0f};
                 compRun.Invoke(null, parameters);
                 Singleton<EscapeMenu>.Instance.Close();
             };
