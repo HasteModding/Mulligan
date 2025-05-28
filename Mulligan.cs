@@ -6,7 +6,6 @@ using Landfall.Haste;
 using Landfall.Modding;
 using Zorro.Settings;
 using Zorro.Core;
-using Sirenix.Utilities; // probably dont need all of these, VS just adds them sometimes and i don't notice
 
 namespace Mulligan
 {
@@ -114,16 +113,18 @@ namespace Mulligan
             int tempId = RunHandler.RunData.shardID;
             RunConfig tempConfig = RunHandler.config;
             int tempSeed = RunHandler.RunData.currentSeed;
-            Debug.Log("Mulligan triggered on level: " +
+            Debug.Log("Mulligan checked on level: " +
                 RunHandler.RunData.currentLevel);
-            Debug.Log("Seed of trigger: " + tempSeed);
-
+            Debug.Log("Seed of check: " + tempSeed);
             if (MulliganThresholdCheck(threshold) &&
                 RunHandler.InRun &&
                 !UI_TransitionHandler.IsTransitioning &&
                 mulliganEnabled &&
                 checkAgainst)
             {
+                Debug.Log("Mulligan triggered on level: " +
+           RunHandler.RunData.currentLevel);
+                Debug.Log("Seed of trigger: " + tempSeed);
                 if (mulliganRestart) // check if restarting just level or whole run
                 {
                     UI_TransitionHandler.instance.Transition(() => // transition back to level start
@@ -142,7 +143,7 @@ namespace Mulligan
                     HasteStats.OnRunEnd(false, RunHandler.RunData.shardID, false);
                     
                     
-                    RunHandler.ClearCurrentRun();
+                    //RunHandler.ClearCurrentRun(); // dont do this probably
                     if (mulliganSeedEnabled) // check if keeping seed,
                     {
                         RunHandler.StartAndPlayNewRun(tempConfig, tempId, tempSeed); // restart run with same stuff
