@@ -298,7 +298,7 @@ namespace Mulligan
                 }
             };
 
-            On.EscapeMenuMainPage.OnAbandonConfirmButtonClicked += (orig, self) =>
+            On.EscapeMenuAbandonPage.OnAbandonConfirmButtonClicked += (orig, self) =>
             {
                 // Override the abandon button to simulate run completion.
                 MethodInfo compRun = typeof(RunHandler)
