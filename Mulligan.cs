@@ -72,7 +72,7 @@ namespace Mulligan
             SaveSystem.Save();
         }
     }
-    
+
 
     /// <summary>
     /// This mod enables a “Mulligan” system on various triggers.
@@ -113,6 +113,7 @@ namespace Mulligan
             int tempId = RunHandler.RunData.shardID;
             RunConfig tempConfig = RunHandler.config;
             int tempSeed = RunHandler.RunData.currentSeed;
+            RunConfigRuntimeData tempRuntimeData = RunHandler.RunData.runConfigRuntimeData;
             Debug.Log("Mulligan checked on level: " +
                 RunHandler.RunData.currentLevel);
             Debug.Log("Seed of check: " + tempSeed);
@@ -141,17 +142,17 @@ namespace Mulligan
                     // Also update run stats so the player gets relevant stat changes.
                     // (Here, we pass false to indicate a non-winning run; adjust if needed.)
                     HasteStats.OnRunEnd(false, RunHandler.RunData.shardID, false);
-                    
-                    
+
+
                     //RunHandler.ClearCurrentRun(); // dont do this probably
                     if (mulliganSeedEnabled) // check if keeping seed,
                     {
-                        RunHandler.StartAndPlayNewRun(tempConfig, tempId, tempSeed); // restart run with same stuff
+                        RunHandler.StartAndPlayNewRun(tempConfig, tempId, tempSeed, tempRuntimeData); // restart run with same stuff
                     }
                     else
                     {
                         RunHandler.StartAndPlayNewRun(
-                            tempConfig, tempId, RunHandler.GenerateSeed()); // restart with new seed
+                            tempConfig, tempId, RunHandler.GenerateSeed(), tempRuntimeData); // restart with new seed
                     }
                 }
                 return true;
@@ -279,12 +280,12 @@ namespace Mulligan
 
             On.GM_Run.PlayerEnteredPortal += (orig, self, player) =>
             {
-                 
+
                 if (self.teirTime_S < self.GetCounter())
                 {
                     if (MulliganCheck(mulliganOnRank, rankThreshold))
                     {
-                        
+
                         return;
                     }
                     else
@@ -304,7 +305,7 @@ namespace Mulligan
                 MethodInfo compRun = typeof(RunHandler)
                     .GetMethod("CompleteRun",
                         BindingFlags.NonPublic | BindingFlags.Static);
-                object[] parameters = new object[] { false, false, 0f};
+                object[] parameters = new object[] { false, false, 0f };
                 compRun.Invoke(null, parameters);
                 Singleton<EscapeMenu>.Instance.Close();
             };
